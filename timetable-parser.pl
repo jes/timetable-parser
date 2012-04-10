@@ -10,6 +10,7 @@ use List::Util qw/min max/;
 use Data::ICal;
 use Data::ICal::Entry::Event;
 use Date::ICal;
+use URI::Escape;
 
 use strict;
 use warnings;
@@ -28,12 +29,21 @@ sub count_cells {
     return $cells;
 }
 
-my $url = 'http://timetables.bath.ac.uk:4090/reporting/individual?identifier=Second+year+Computer+Science&weeks=1-15&submit2=View+Computer+Science+Timetable&idtype=name&objectclass=programme%2Bof%2Bstudy%2Bgroups&periods=1-11&days=1-5&width=100&height=0';
+my ($year, $month, $day) = (2011, 9, 26);
+my $base_url = 'http://timetables.bath.ac.uk:4090/reporting/individual?';
+my %params = (
+        identifier => 'Second year Computer Science',
+        weeks => '1-150',
+        idtype => 'name',
+        objectclass => "programme\x2bof\x2bstudy\x2bgroups",
+        days => '1-5',
+);
+my $url = $base_url . join( '&', map( "$_=" . uri_escape( $params{$_} ), keys %params ) );
 
-my $dom = HTML::DOM->new();
 my $page = get( $url )
     or die "error: unable to get $url";
 
+my $dom = HTML::DOM->new();
 $dom->write( $page );
 $dom->close();
 
@@ -42,7 +52,7 @@ my @tables = $dom->body->getElementsByTagName( 'table' );
 my $maxcells = -1;
 my $maxtable;
 
-# find the largest table (the timetable one)
+# find the largest table (assume that this is the timetable one)
 foreach my $table (@tables) {
     my $cells = count_cells( $table );
     if ($cells > $maxcells) {
@@ -70,25 +80,29 @@ for (my $i = 1; $i < @{ $table[0] }; $i++) {
 }
 
 my @events;
+my $ninputevents = 0;
 my $maxweek = 1;
 
 # build list of events
+my $dayofweek = 1;
+my $justincrementedday = 1;
 for (my $i = 1; $i < @table; $i++) {
     my $timeslot = 0;
+
     CELL:
-    for (my $j = 1; $j < @{ $table[$i] }; $j++) {
+    for (my $j = $justincrementedday; $j < @{ $table[$i] }; $j++) {
         my $cell = $table[$i]->[$j];
         my $time = $times[$timeslot];
         my $hours = $cell->colSpan;
         $timeslot += $hours;
 
-        my @fonts = map( $_->as_text(), $cell->getElementsByTagName('font') );
+        my @lines = map( $_->as_text(), $cell->getElementsByTagName('font') );
 
-        next CELL if @fonts == 0;
+        next CELL if @lines == 0;
 
-        die "bad cell" if @fonts != 3;
+        die "bad cell" if @lines != 3;
 
-        my ($subject, $room, $weeks) = @fonts;
+        my ($subject, $room, $weeks) = @lines;
         $weeks =~ s/\s+//g;
         $weeks =~ s/-/../g;
         my $range = Number::Range->new( $weeks );
@@ -103,24 +117,38 @@ for (my $i = 1; $i < @table; $i++) {
                 weeks => $range,
         );
 
-        push @{ $events[$i] }, \%event;
+        push @{ $events[$dayofweek] }, \%event;
+        $ninputevents++;
+    }
+
+    my $cell = $table[$i]->[0];
+    print STDERR $cell->as_text() . "\n";
+    if ($cell->rowSpan == 1) {
+        $dayofweek++;
+        $justincrementedday = 1;
+    } else {
+        $justincrementedday = 0;
     }
 }
 
+print STDERR "Read $ninputevents events\n";
+
 my $ical = Data::ICal->new();
-my ($year, $month, $day) = Monday_of_Week( 25, 2011 );
 
+my $nevents = 0;
+
+print STDERR "Max week is $maxweek\n";
+
+# put the events in the calendar
 for (my $w = 1; $w <= $maxweek; $w++) {
-    #print "Week $w\n";
-
     for (my $d = 1; $d <= 5; $d++) {
-        #print "Day $d\n";
-
         my @events = @{ $events[$d] };
         EVENT:
         foreach my $event (@events) {
+            # don't add the event at this time if it does not occur on this week
             next EVENT if (!$event->{weeks}->inrange( $w ));
 
+            # make a date object
             my ($hours, $minutes) = split /:/, $event->{time};
             my $icaldate = Date::ICal->new(
                     year => $year,
@@ -130,7 +158,7 @@ for (my $w = 1; $w <= $maxweek; $w++) {
                     min => $minutes,
             );
 
-            #print "$event->{time} ($event->{hours} hr): $event->{subject} in $event->{room}\n";
+            # add an event object
             my $icalevent = Data::ICal::Entry::Event->new();
             $icalevent->add_properties(
                    summary => "$event->{subject} $event->{room}",
@@ -138,6 +166,9 @@ for (my $w = 1; $w <= $maxweek; $w++) {
                    dtstart => $icaldate->ical,
             );
             $ical->add_entry( $icalevent );
+            $nevents++;
+
+            print STDERR sprintf("%02d-%02d-%02d $hours:$minutes $event->{subject} $event->{room}\n", $year, $month, $day);
         }
 
         # go to next day
@@ -146,8 +177,8 @@ for (my $w = 1; $w <= $maxweek; $w++) {
 
     # skip the weekend
     ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 2 );
-
-    #print "\n\n";
 }
+
+print STDERR "Output $nevents events\n";
 
 print $ical->as_string;
