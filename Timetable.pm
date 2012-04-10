@@ -94,11 +94,13 @@ sub ical_for_dom {
 
     my @events;
     my $ninputevents = 0;
+    my $minweek = -1;
     my $maxweek = 1;
 
     # build list of events
     my $dayofweek = 1;
     my $justincrementedday = 1;
+    my $rowsuntilincrement = $table[1]->[0]->rowSpan;
     for (my $i = 1; $i < @table; $i++) {
         my $timeslot = 0;
 
@@ -119,7 +121,9 @@ sub ical_for_dom {
             $weeks =~ s/\s+//g;
             $weeks =~ s/-/../g;
             my $range = Number::Range->new( $weeks );
-            
+
+            $minweek = min( $range->range ) if $minweek == -1;
+            $minweek = min( $minweek, $range->range );
             $maxweek = max( $maxweek, $range->range );
 
             my %event = ( 
@@ -134,11 +138,11 @@ sub ical_for_dom {
             $ninputevents++;
         }
 
-        my $cell = $table[$i]->[0];
-        print STDERR $cell->as_text() . "\n";
-        if ($cell->rowSpan == 1) {
+        $rowsuntilincrement--;
+        if ($i != @table - 1 && $rowsuntilincrement == 0) {
             $dayofweek++;
             $justincrementedday = 1;
+            $rowsuntilincrement = $table[$i+1]->[0]->rowSpan;
         } else {
             $justincrementedday = 0;
         }
@@ -152,8 +156,10 @@ sub ical_for_dom {
 
     print STDERR "Max week is $maxweek\n";
 
+    ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 7 * ($minweek - 1) );
+
     # put the events in the calendar
-    for (my $w = 1; $w <= $maxweek; $w++) {
+    for (my $w = $minweek; $w <= $maxweek; $w++) {
         for (my $d = 1; $d <= 5; $d++) {
             my @events = @{ $events[$d] };
             EVENT:
