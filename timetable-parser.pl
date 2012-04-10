@@ -5,7 +5,11 @@
 use HTML::DOM;
 use Number::Range;
 use LWP::Simple;
+use Date::Calc qw/Monday_of_Week Add_Delta_Days/;
 use List::Util qw/min max/;
+use Data::ICal;
+use Data::ICal::Entry::Event;
+use Date::ICal;
 
 use strict;
 use warnings;
@@ -68,6 +72,7 @@ for (my $i = 1; $i < @{ $table[0] }; $i++) {
 my @events;
 my $maxweek = 1;
 
+# build list of events
 for (my $i = 1; $i < @table; $i++) {
     my $timeslot = 0;
     CELL:
@@ -102,17 +107,47 @@ for (my $i = 1; $i < @table; $i++) {
     }
 }
 
+my $ical = Data::ICal->new();
+my ($year, $month, $day) = Monday_of_Week( 25, 2011 );
+
 for (my $w = 1; $w <= $maxweek; $w++) {
-    print "Week $w\n";
+    #print "Week $w\n";
 
     for (my $d = 1; $d <= 5; $d++) {
-        print "Day $d\n";
+        #print "Day $d\n";
 
         my @events = @{ $events[$d] };
+        EVENT:
         foreach my $event (@events) {
-            print "$event->{time} ($event->{hours} hr): $event->{subject} in $event->{room}\n" if ($event->{weeks}->inrange($w));
+            next EVENT if (!$event->{weeks}->inrange( $w ));
+
+            my ($hours, $minutes) = split /:/, $event->{time};
+            my $icaldate = Date::ICal->new(
+                    year => $year,
+                    month => $month,
+                    day => $day,
+                    hour => $hours,
+                    min => $minutes,
+            );
+
+            #print "$event->{time} ($event->{hours} hr): $event->{subject} in $event->{room}\n";
+            my $icalevent = Data::ICal::Entry::Event->new();
+            $icalevent->add_properties(
+                   summary => "$event->{subject} $event->{room}",
+                   duration => ($event->{hours} * 60 - 10) . "M",
+                   dtstart => $icaldate->ical,
+            );
+            $ical->add_entry( $icalevent );
         }
+
+        # go to next day
+        ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 1 );
     }
 
-    print "\n\n";
+    # skip the weekend
+    ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 2 );
+
+    #print "\n\n";
 }
+
+print $ical->as_string;
