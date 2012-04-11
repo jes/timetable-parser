@@ -6,17 +6,14 @@ package Timetable;
 use HTML::DOM;
 use Number::Range;
 use LWP::Simple;
-use Date::Calc qw/Monday_of_Week Add_Delta_Days/;
+use Date::Calc qw/Add_Delta_Days/;
 use List::Util qw/min max/;
-use Data::ICal;
-use Data::ICal::Entry::Event;
-use Date::ICal;
 use URI::Escape;
 use Carp;
 require Exporter;
 
 @ISA = qw/Exporter/;
-@EXPORT_OK = qw/ical_for_url ical_for_html ical_for_dom/;
+@EXPORT_OK = qw/ical_for_url ical_for_html ical_for_dom ical_as_string/;
 
 use strict;
 use warnings;
@@ -150,7 +147,7 @@ sub ical_for_dom {
 
     print STDERR "Read $ninputevents events\n";
 
-    my $ical = Data::ICal->new();
+    my @ical;
 
     my $nevents = 0;
 
@@ -159,48 +156,96 @@ sub ical_for_dom {
     ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 7 * ($minweek - 1) );
 
     # put the events in the calendar
-    for (my $w = $minweek; $w <= $maxweek; $w++) {
+    #for (my $w = $minweek; $w <= $maxweek; $w++) {
         for (my $d = 1; $d <= 5; $d++) {
             my @events = @{ $events[$d] };
+
             EVENT:
             foreach my $event (@events) {
-                # don't add the event at this time if it does not occur on this week
-                next EVENT if (!$event->{weeks}->inrange( $w ));
+                my @recur;
+                my @exdates;
+                my ($thisyear, $thismonth, $thisday) = ($year, $month, $day);
+                my $startdate = undef;
+                my $nweeks = 0;
 
-                # make a date object
-                my ($hours, $minutes) = split /:/, $event->{time};
-                my $icaldate = Date::ICal->new(
-                        year => $year,
-                        month => $month,
-                        day => $day,
-                        hour => $hours,
-                        min => $minutes,
-                );
+                WEEK:
+                for (my $w = $minweek; $w <= $maxweek; $w++) {
+                    my ($ty, $tm, $td) = ($thisyear, $thismonth, $thisday);
+                    ($thisyear, $thismonth, $thisday) = Add_Delta_Days( $thisyear, $thismonth, $thisday, 7 );
 
-                # add an event object
-                my $icalevent = Data::ICal::Entry::Event->new();
-                $icalevent->add_properties(
-                       summary => "$event->{subject} $event->{room}",
-                       duration => ($event->{hours} * 60 - 10) . "M",
-                       dtstart => $icaldate->ical,
+                    # make a date object
+                    # TODO: only do this for startdate and exdates
+                    my ($hours, $minutes) = split /:/, $event->{time};
+                    my $icaldate = sprintf( "%04d%02d%02dT%02d%02d00", $ty, $tm, $td, $hours, $minutes );
+
+                    if (!defined $startdate) {
+                        $startdate = $icaldate;
+                        $nweeks = 1;
+                    }
+
+                    $nweeks++;
+
+                    if (!$event->{weeks}->inrange( $w )) {
+                        push @exdates, $icaldate;
+                    }
+                }
+
+                # add an event hash
+                my %icalevent = (
+                        DTSTART => $startdate,
+                        DURATION => ($event->{hours} * 60 - 10) . "M",
+                        EXDATE => join( ',', @exdates ),
+                        RRULE => "FREQ=WEEKLY;COUNT=$nweeks",
+                        SUMMARY => "$event->{subject} $event->{room}",
                 );
-                $ical->add_entry( $icalevent );
+                push @ical, \%icalevent;
                 $nevents++;
-
-                print STDERR sprintf("%02d-%02d-%02d $hours:$minutes $event->{subject} $event->{room}\n", $year, $month, $day);
             }
 
             # go to next day
             ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 1 );
         }
-
-        # skip the weekend
-        ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 2 );
-    }
+    #}
 
     print STDERR "Write $nevents events\n";
 
-    return $ical;
+    return \@ical;
+}
+
+sub _fold_lines {
+    my $output = '';
+
+    foreach my $line (@_) {
+        while( length( $line ) > 75 ) {
+            $output .= substr( $line, 0, 75 ) . "\r\n";
+            $line = ' ' . substr( $line, 75 );
+        }
+        $output .= "$line\r\n";
+    }
+
+    return $output;
+}
+
+sub ical_as_string {
+    my $ical = shift or die 'no ical given to ical_as_string';
+
+    my @lines = (
+        'BEGIN:VCALENDAR',
+        'PRODID:Timetable.pm james@incoherency.co.uk',
+        'VERSION:1.0',
+    );
+
+    foreach my $event (@$ical) {
+        push @lines, 'BEGIN:VEVENT';
+        foreach my $field (sort keys %$event) {
+            push @lines, "$field:$event->{$field}";
+        }
+        push @lines, 'END:VEVENT';
+    }
+
+    push @lines, 'END:VCALENDAR';
+
+    return _fold_lines( @lines );
 }
 
 1;
