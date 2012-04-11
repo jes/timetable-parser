@@ -19,6 +19,65 @@ require Exporter;
 use strict;
 use warnings;
 
+=head1 NAME
+
+Timetable - convert a University of Bath HTML timetable to an iCalendar file
+
+=head1 SYNOPSIS
+
+    use Timetable qw/ical_for_url ical_as_string/;
+
+    my @start = (2011, 10, 3);
+    my $ical = ical_for_url( \@start, $url_to_timetable_page );
+
+    print ical_as_string( $ical );
+
+=head1 DESCRIPTION
+
+The University of Bath give timetables in HTML files which are needlessly
+difficult to use. For example:
+
+http://timetables.bath.ac.uk:4090/reporting/individual?identifier=Second+year+
+Chemistry+with+Management&weeks=19-32&idtype=name&objectclass=programme%2Bof%2B
+study%2Bgroups
+
+This module is capable of scraping these pages and outputting iCalendar (RFC
+2445) files containing the events.
+
+=head1 DATA STRUCTURE
+
+The iCalendar structures returned by many of these functions are arrayrefs
+containing hashrefs describing events.
+
+For example:
+
+    [
+        {
+            'SUMMARY' => 'CM20218-Leca 6W 1.1',
+            'DURATION' => '50M',
+            'RRULE' => 'FREQ=WEEKLY;COUNT=15',
+            'EXDATE' => '20120402T081500Z,20120409T081500Z',
+            'DTSTART' => '20120206T091500Z'
+        }
+    ];
+
+for a one-event structure with those properties. See RFC 2445 for what they
+mean.
+
+=head1 FUNCTIONS
+
+=head2 ical_for_url $start, $url
+
+$start should be an array reference of the form [ $year, $month, $day ]
+describing the date of the first monday in the timetabling period. How this is
+determined is an exercise for the module user (realistically, you have to just
+get it manually from the university semester dates).
+
+Return an iCalendar structure describing the page at the given $url or undef if
+there is an error.
+
+=cut
+
 sub ical_for_url {
     my $start = shift or (carp "no start date given to ical_for_url" and return undef);
     my $url = shift or (carp "no url given to ical_for_url" and return undef);
@@ -27,6 +86,15 @@ sub ical_for_url {
 
     return ical_for_html( $start, $page );
 }
+
+=head2 ical_for_html $start, $html
+
+$start is as for ical_for_url.
+
+Return an iCalendar structure describing the page in $html or undef if there is
+an error.
+
+=cut
 
 sub ical_for_html {
     my $start = shift or (carp "no start date given to ical_for_html" and return undef);
@@ -38,6 +106,19 @@ sub ical_for_html {
 
     return ical_for_dom( $start, $dom );
 }
+
+=begin private
+
+=head2 _count_cells $table
+
+Return the total number of cells in the HTML::DOM::Table.
+
+This is used internally to select the largest table (which is almost certainly
+the one containing the timetable data).
+
+=end private
+
+=cut
 
 sub _count_cells {
     my $table = shift;
@@ -51,6 +132,15 @@ sub _count_cells {
 
     return $cells;
 }
+
+=head2 ical_for_dom $start, $dom
+
+$start is as for ical_for_url.
+
+Return an iCalendar structure describinbg the page in the HTML::DOM in $dom or
+undef if there is an error.
+
+=cut
 
 sub ical_for_dom {
     my $start = shift or (carp "no start date given to ical_for_dom" and return undef);
@@ -227,6 +317,17 @@ sub ical_for_dom {
     return \@ical;
 }
 
+=begin private
+
+=head2 _fold_lines @lines
+
+Concatenate the lines in the given array, folding them at 75 characters as
+per RFC 2445.
+
+=end private
+
+=cut
+
 sub _fold_lines {
     my $output = '';
 
@@ -240,6 +341,13 @@ sub _fold_lines {
 
     return $output;
 }
+
+=head2 ical_as_string $ical
+
+Return a string representation of the given iCalendar structure, suitable for
+writing to a .ics file.
+
+=cut
 
 sub ical_as_string {
     my $ical = shift or die 'no ical given to ical_as_string';
@@ -262,5 +370,15 @@ sub ical_as_string {
 
     return _fold_lines( @lines );
 }
+
+=head1 AUTHOR
+
+James Stanley <james@incoherency.co.uk>
+
+=head1 LICENSING
+
+Do whatever you want.
+
+=cut
 
 1;
