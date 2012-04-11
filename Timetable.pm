@@ -6,6 +6,7 @@ package Timetable;
 use HTML::DOM;
 use Number::Range;
 use LWP::Simple;
+use DateTime;
 use Date::Calc qw/Add_Delta_Days/;
 use List::Util qw/min max/;
 use URI::Escape;
@@ -170,13 +171,25 @@ sub ical_for_dom {
 
                 WEEK:
                 for (my $w = $minweek; $w <= $maxweek; $w++) {
-                    my ($ty, $tm, $td) = ($thisyear, $thismonth, $thisday);
-                    ($thisyear, $thismonth, $thisday) = Add_Delta_Days( $thisyear, $thismonth, $thisday, 7 );
 
                     # make a date object
                     # TODO: only do this for startdate and exdates
                     my ($hours, $minutes) = split /:/, $event->{time};
-                    my $icaldate = sprintf( "%04d%02d%02dT%02d%02d00", $ty, $tm, $td, $hours, $minutes );
+                    my $localdate = DateTime->new(
+                            year => $thisyear,
+                            month => $thismonth,
+                            day => $thisday,
+                            hour => $hours,
+                            minute => $minutes,
+                            time_zone => 'Europe/London',
+                    );
+                    $localdate->set_time_zone( 'UTC' );
+                    $thisyear = $localdate->year;
+                    $thismonth = $localdate->month;
+                    $thisday = $localdate->day;
+                    $hours = $localdate->hour;
+                    $minutes = $localdate->minute;
+                    my $icaldate = sprintf( "%04d%02d%02dT%02d%02d00Z", $thisyear, $thismonth, $thisday, $hours, $minutes );
 
                     if (!defined $startdate) {
                         $startdate = $icaldate;
@@ -188,6 +201,8 @@ sub ical_for_dom {
                     if (!$event->{weeks}->inrange( $w )) {
                         push @exdates, $icaldate;
                     }
+
+                    ($thisyear, $thismonth, $thisday) = Add_Delta_Days( $thisyear, $thismonth, $thisday, 7 );
                 }
 
                 # add an event hash
