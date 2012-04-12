@@ -220,7 +220,7 @@ sub ical_for_dom {
     my $justincrementedday = 1;
     my $rowsuntilincrement = $table[1]->[0]->rowSpan;
     for (my $i = 1; $i < @table; $i++) {
-    my $timeslot = 0;
+        my $timeslot = 0;
 
         CELL:
         for (my $j = $justincrementedday; $j < @{ $table[$i] }; $j++) {
@@ -245,31 +245,23 @@ sub ical_for_dom {
             my $range = Number::Range->new( $weeks );
 
             my @exdates;
-            my ($thisyear, $thismonth, $thisday) = Add_Delta_Days( $year, $month, $day, $dayofweek );
-            my $nweeks = 0;
+            my ($y, $m, $d) = Add_Delta_Days( $year, $month, $day, $dayofweek );
             my $minweek = min( $range->range );
             my $maxweek = max( $range->range );
-            my ($hours, $minutes) = split /:/, $time;
-            my $startdate = _ical_time_for( $thisyear, $thismonth, $thisday, $minweek, $hours, $minutes );
+            my ($hour, $min) = split /:/, $time;
+            my $startdate = _ical_time_for( $y, $m, $d, $minweek, $hour, $min );
 
-            # work out what dates the event should exist for
+            # work out what dates the event should not exist for
             for (my $w = $minweek; $w <= $maxweek; $w++) {
-                # generate and store a date when necessary
-                if (!$range->inrange( $w )) {
-                    my $icaldate = _ical_time_for( $thisyear, $thismonth,
-                            $thisday, $w, $hours, $minutes );
-
-                    push @exdates, $icaldate;
-                }
-
-                $nweeks++;
+                push @exdates, _ical_time_for( $y, $m, $d, $w, $hour, $min )
+                    if !$range->inrange( $w );
             }
 
             # add an event hash
             my %icalevent = (
                     DTSTART => $startdate,
                     DURATION => ($duration * 60 - 10) . "M",
-                    RRULE => "FREQ=WEEKLY;COUNT=$nweeks",
+                    RRULE => "FREQ=WEEKLY;COUNT=" . ($maxweek - $minweek + 1),
                     SUMMARY => "$subject $room",
             );
             $icalevent{EXDATE} = join( ',', @exdates) if @exdates;
