@@ -135,18 +135,18 @@ sub _count_cells {
 
 =begin private
 
-=head2 _utc_time_for $year, $month, $day, $weeks, $hour, $minute
+=head2 _ical_time_for $year, $month, $day, $weeks, $hour, $minute
 
 Return the UTC time for the Europe/London time which is $weeks weeks after the
 date given with ($year, $month, $day) and is at $hour:$minute.
 
-Return is of the form ($year, $month, $day, $hour, $minute).
+Return is an iCalendar datetime string.
 
 =end private
 
 =cut
 
-sub _utc_time_for {
+sub _ical_time_for {
     my ($year, $month, $day, $weeks, $hour, $minute) = @_;
 
     ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 7 * ($weeks - 1) );
@@ -161,7 +161,8 @@ sub _utc_time_for {
     );
     $d->set_time_zone( 'UTC' );
 
-    return ($d->year, $d->month, $d->day, $d->hour, $d->minute);
+    return sprintf( "%04d%02d%02dT%02d%02d00Z", $d->year, $d->month, $d->day,
+            $d->hour, $d->minute );
 }
 
 =head2 ical_for_dom $start, $dom
@@ -204,6 +205,7 @@ sub ical_for_dom {
         push @table, \@row;
     }
 
+    # extract the times of periods from the first row
     my @times;
     for (my $i = 1; $i < @{ $table[0] }; $i++) {
         my $cell = $table[0]->[$i];
@@ -218,14 +220,14 @@ sub ical_for_dom {
     my $justincrementedday = 1;
     my $rowsuntilincrement = $table[1]->[0]->rowSpan;
     for (my $i = 1; $i < @table; $i++) {
-        my $timeslot = 0;
+    my $timeslot = 0;
 
         CELL:
         for (my $j = $justincrementedday; $j < @{ $table[$i] }; $j++) {
             my $cell = $table[$i]->[$j];
             my $time = $times[$timeslot];
-            my $hours = $cell->colSpan;
-            $timeslot += $hours;
+            my $duration = $cell->colSpan;
+            $timeslot += $duration;
 
             # extract lines from the table (they're in <font> tags...)
             my @lines = map( $_->as_text(), $cell->getElementsByTagName( 'font' ) );
@@ -244,29 +246,29 @@ sub ical_for_dom {
 
             my @exdates;
             my ($thisyear, $thismonth, $thisday) = Add_Delta_Days( $year, $month, $day, $dayofweek );
-            my $startdate = undef;
             my $nweeks = 0;
             my $minweek = min( $range->range );
             my $maxweek = max( $range->range );
+            my ($hours, $minutes) = split /:/, $time;
+            my $startdate = _ical_time_for( $thisyear, $thismonth, $thisday, $minweek, $hours, $minutes );
 
             # work out what dates the event should exist for
             for (my $w = $minweek; $w <= $maxweek; $w++) {
-                my ($hours, $minutes) = split /:/, $time;
-                my $icaldate = sprintf( "%04d%02d%02dT%02d%02d00Z", _utc_time_for( $thisyear, $thismonth, $thisday, $w, $hours, $minutes ) );
+                # generate and store a date when necessary
+                if (!$range->inrange( $w )) {
+                    my $icaldate = _ical_time_for( $thisyear, $thismonth,
+                            $thisday, $w, $hours, $minutes );
 
-                if ($range->inrange( $w )) {
-                    $startdate = $icaldate if !defined $startdate;
-                } else {
-                    push @exdates, $icaldate if defined $startdate;
+                    push @exdates, $icaldate;
                 }
 
-                $nweeks++ if defined $startdate;
+                $nweeks++;
             }
 
             # add an event hash
             my %icalevent = (
                     DTSTART => $startdate,
-                    DURATION => ($hours * 60 - 10) . "M",
+                    DURATION => ($duration * 60 - 10) . "M",
                     RRULE => "FREQ=WEEKLY;COUNT=$nweeks",
                     SUMMARY => "$subject $room",
             );
@@ -275,6 +277,8 @@ sub ical_for_dom {
             push @ical, \%icalevent;
         }
 
+        # some rows of events span several rows of the table, work out when
+        # we should increment the day
         $rowsuntilincrement--;
         if ($rowsuntilincrement == 0) {
             $dayofweek++;
@@ -284,8 +288,6 @@ sub ical_for_dom {
             $justincrementedday = 0;
         }
     }
-
-    print STDERR (scalar @ical) . " events\n";
 
     return \@ical;
 }
