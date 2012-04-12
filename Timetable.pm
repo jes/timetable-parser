@@ -207,11 +207,8 @@ sub ical_for_dom {
 
     # extract the times of periods from the first row
     my @times;
-    for (my $i = 1; $i < @{ $table[0] }; $i++) {
-        my $cell = $table[0]->[$i];
-
-        push @times, $cell->as_text();
-    }
+    my @firstrow = @{ $table[0] };
+    push @times, $_->as_text() for @firstrow[1 .. $#firstrow];
 
     my @ical;
 
@@ -227,9 +224,10 @@ sub ical_for_dom {
             my $cell = $table[$i]->[$j];
             my $time = $times[$timeslot];
             my $duration = $cell->colSpan;
+
             $timeslot += $duration;
 
-            # extract lines from the table (they're in <font> tags...)
+            # extract lines from the table (in <font> tags...)
             my @lines = map( $_->as_text(), $cell->getElementsByTagName( 'font' ) );
 
             # skip empty cells and fail for wrong-sized ones
@@ -244,12 +242,12 @@ sub ical_for_dom {
             $weeks =~ s/-/../g;
             my $range = Number::Range->new( $weeks );
 
-            my @exdates;
-            my ($y, $m, $d) = Add_Delta_Days( $year, $month, $day, $dayofweek );
             my $minweek = min( $range->range );
             my $maxweek = max( $range->range );
             my ($hour, $min) = split /:/, $time;
+            my ($y, $m, $d) = Add_Delta_Days( $year, $month, $day, $dayofweek );
             my $startdate = _ical_time_for( $y, $m, $d, $minweek, $hour, $min );
+            my @exdates;
 
             # work out what dates the event should not exist for
             for (my $w = $minweek; $w <= $maxweek; $w++) {
@@ -275,7 +273,7 @@ sub ical_for_dom {
         if ($rowsuntilincrement == 0) {
             $dayofweek++;
             $justincrementedday = 1;
-            $rowsuntilincrement = $table[$i+1]->[0]->rowSpan if $i+1 != @table;
+            $rowsuntilincrement = $table[$i+1]->[0]->rowSpan if $i != $#table;
         } else {
             $justincrementedday = 0;
         }
