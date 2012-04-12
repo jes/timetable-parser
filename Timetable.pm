@@ -211,8 +211,7 @@ sub ical_for_dom {
         push @times, $cell->as_text();
     }
 
-    my @events;
-    my $ninputevents = 0;
+    my @ical;
 
     # build list of events
     my $dayofweek = 0;
@@ -228,28 +227,52 @@ sub ical_for_dom {
             my $hours = $cell->colSpan;
             $timeslot += $hours;
 
-            my @lines = map( $_->as_text(), $cell->getElementsByTagName('font') );
+            # extract lines from the table (they're in <font> tags...)
+            my @lines = map( $_->as_text(), $cell->getElementsByTagName( 'font' ) );
 
+            # skip empty cells and fail for wrong-sized ones
             next CELL if @lines == 0;
-
             die "bad cell" if @lines != 3;
 
+            # extract information from the lines in the table
             my ($subject, $room, $weeks) = @lines;
+
+            # get a Number::Range describing the weeks
             $weeks =~ s/\s+//g;
             $weeks =~ s/-/../g;
             my $range = Number::Range->new( $weeks );
 
-            my %event = ( 
-                    time => $time,
-                    hours => $hours,
-                    subject => $subject,
-                    room => $room,
-                    weeks => $range,
-                    dayofweek => $dayofweek,
-            );
+            my @exdates;
+            my ($thisyear, $thismonth, $thisday) = Add_Delta_Days( $year, $month, $day, $dayofweek );
+            my $startdate = undef;
+            my $nweeks = 0;
+            my $minweek = min( $range->range );
+            my $maxweek = max( $range->range );
 
-            push @events, \%event;
-            $ninputevents++;
+            # work out what dates the event should exist for
+            for (my $w = $minweek; $w <= $maxweek; $w++) {
+                my ($hours, $minutes) = split /:/, $time;
+                my $icaldate = sprintf( "%04d%02d%02dT%02d%02d00Z", _utc_time_for( $thisyear, $thismonth, $thisday, $w, $hours, $minutes ) );
+
+                if ($range->inrange( $w )) {
+                    $startdate = $icaldate if !defined $startdate;
+                } else {
+                    push @exdates, $icaldate if defined $startdate;
+                }
+
+                $nweeks++ if defined $startdate;
+            }
+
+            # add an event hash
+            my %icalevent = (
+                    DTSTART => $startdate,
+                    DURATION => ($hours * 60 - 10) . "M",
+                    RRULE => "FREQ=WEEKLY;COUNT=$nweeks",
+                    SUMMARY => "$subject $room",
+            );
+            $icalevent{EXDATE} = join( ',', @exdates) if @exdates;
+
+            push @ical, \%icalevent;
         }
 
         $rowsuntilincrement--;
@@ -262,46 +285,7 @@ sub ical_for_dom {
         }
     }
 
-    print STDERR "Read $ninputevents events\n";
-
-    my @ical;
-
-    my $nevents = 0;
-
-    # put the events in the calendar
-    foreach my $event (@events) {
-        my @exdates;
-        my ($thisyear, $thismonth, $thisday) = Add_Delta_Days( $year, $month, $day, $event->{dayofweek} );
-        my $startdate = undef;
-        my $nweeks = 0;
-        my $minweek = min( $event->{weeks}->range );
-        my $maxweek = max( $event->{weeks}->range );
-
-        for (my $w = $minweek; $w <= $maxweek; $w++) {
-            my ($hours, $minutes) = split /:/, $event->{time};
-            my $icaldate = sprintf( "%04d%02d%02dT%02d%02d00Z", _utc_time_for( $thisyear, $thismonth, $thisday, $w, $hours, $minutes ) );
-
-            if ($event->{weeks}->inrange( $w )) {
-                $startdate = $icaldate if !defined $startdate;
-            } else {
-                push @exdates, $icaldate if defined $startdate;
-            }
-
-            $nweeks++ if defined $startdate;
-        }
-
-        # add an event hash
-        my %icalevent = (
-                DTSTART => $startdate,
-                DURATION => ($event->{hours} * 60 - 10) . "M",
-                RRULE => "FREQ=WEEKLY;COUNT=$nweeks",
-                SUMMARY => "$event->{subject} $event->{room}",
-        );
-        $icalevent{EXDATE} = join( ',', @exdates) if @exdates;
-        push @ical, \%icalevent;
-        $nevents++;
-    }
-    print STDERR "Write $nevents events\n";
+    print STDERR (scalar @ical) . " events\n";
 
     return \@ical;
 }
