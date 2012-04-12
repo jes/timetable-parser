@@ -151,18 +151,8 @@ sub _ical_time_for {
 
     ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 7 * $weeks );
 
-    my $d = DateTime->new(
-            year => $year,
-            month => $month,
-            day => $day,
-            hour => $hour,
-            minute => $minute,
-            time_zone => 'Europe/London',
-    );
-    $d->set_time_zone( 'UTC' );
-
-    return sprintf( "%04d%02d%02dT%02d%02d00Z", $d->year, $d->month, $d->day,
-            $d->hour, $d->minute );
+    return sprintf( "%04d%02d%02dT%02d%02d00", $year, $month, $day, $hour,
+            $minute );
 }
 
 =head2 ical_for_dom $start, $dom
