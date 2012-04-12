@@ -37,8 +37,8 @@ Timetable.pm - convert a University of Bath HTML timetable to an iCalendar file
 The University of Bath give timetables in HTML files which are needlessly
 difficult to use. For example:
 
-http://timetables.bath.ac.uk:4090/reporting/individual?identifier=Secon\
-d+year+Chemistry+with+Management&weeks=19-32&idtype=name&objectclass=pr\
+http://timetables.bath.ac.uk:4090/reporting/individual?identifier=Secon
+d+year+Chemistry+with+Management&weeks=19-32&idtype=name&objectclass=pr
 ogramme%2Bof%2Bstudy%2Bgroups
 
 This module is capable of scraping these pages and outputting iCalendar (RFC

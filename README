@@ -1,0 +1,74 @@
+NAME
+    Timetable.pm - convert a University of Bath HTML timetable to an
+    iCalendar file
+
+SYNOPSIS
+        use Timetable qw/ical_for_url ical_as_string/;
+
+        my @start = (2011, 10, 3);
+        my $ical = ical_for_url( \@start, $url_to_timetable_page );
+
+        print ical_as_string( $ical );
+
+DESCRIPTION
+    The University of Bath give timetables in HTML files which are
+    needlessly difficult to use. For example:
+
+    http://timetables.bath.ac.uk:4090/reporting/individual?identifier=Secon
+    d+year+Chemistry+with+Management&weeks=19-32&idtype=name&objectclass=pr
+    ogramme%2Bof%2Bstudy%2Bgroups
+
+    This module is capable of scraping these pages and outputting iCalendar
+    (RFC 2445) files containing the events.
+
+DATA STRUCTURE
+    The iCalendar structures returned by many of these functions are
+    arrayrefs containing hashrefs describing events.
+
+    For example:
+
+        [
+            {
+                'SUMMARY' => 'CM20218-Leca 6W 1.1',
+                'DURATION' => '50M',
+                'RRULE' => 'FREQ=WEEKLY;COUNT=15',
+                'EXDATE' => '20120402T081500Z,20120409T081500Z',
+                'DTSTART' => '20120206T091500Z'
+            }
+        ];
+
+    for a one-event structure with those properties. See RFC 2445 for what
+    they mean.
+
+FUNCTIONS
+  ical_for_url $start, $url
+    $start should be an array reference of the form [ $year, $month, $day ]
+    describing the date of the first monday in the timetabling period. How
+    this is determined is an exercise for the module user (realistically,
+    you have to just get it manually from the university semester dates).
+
+    Return an iCalendar structure describing the page at the given $url or
+    undef if there is an error.
+
+  ical_for_html $start, $html
+    $start is as for ical_for_url.
+
+    Return an iCalendar structure describing the page in $html or undef if
+    there is an error.
+
+  ical_for_dom $start, $dom
+    $start is as for ical_for_url.
+
+    Return an iCalendar structure describinbg the page in the HTML::DOM in
+    $dom or undef if there is an error.
+
+  ical_as_string $ical
+    Return a string representation of the given iCalendar structure,
+    suitable for writing to a .ics file.
+
+AUTHOR
+    James Stanley <james@incoherency.co.uk>
+
+LICENSING
+    Do whatever you want.
+
