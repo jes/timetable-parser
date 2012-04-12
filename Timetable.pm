@@ -172,6 +172,8 @@ sub ical_for_dom {
 
     my @tables = $dom->body->getElementsByTagName( 'table' );
 
+    (carp "no tables in page" and return undef) unless @tables;
+
     my $maxcells = -1;
     my $maxtable;
 
@@ -194,6 +196,8 @@ sub ical_for_dom {
         }
         push @table, \@row;
     }
+
+    (carp "biggest table is too small" and return undef) unless @table > 1 && @{ $table[0] } > 1;
 
     # extract the times of periods from the first row
     my @firstrow = @{ $table[0] };
