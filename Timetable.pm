@@ -149,7 +149,7 @@ Return is an iCalendar datetime string.
 sub _ical_time_for {
     my ($year, $month, $day, $weeks, $hour, $minute) = @_;
 
-    ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 7 * ($weeks - 1) );
+    ($year, $month, $day) = Add_Delta_Days( $year, $month, $day, 7 * $weeks );
 
     my $d = DateTime->new(
             year => $year,
@@ -245,12 +245,12 @@ sub ical_for_dom {
             my $maxweek = max( $range->range );
             my ($hour, $min) = split /:/, $time;
             my ($y, $m, $d) = Add_Delta_Days( $year, $month, $day, $dayofweek );
-            my $startdate = _ical_time_for( $y, $m, $d, $minweek, $hour, $min );
+            my $startdate = _ical_time_for( $y, $m, $d, $minweek-1, $hour, $min );
             my @exdates;
 
             # work out what dates the event should not exist for
             for (my $w = $minweek; $w <= $maxweek; $w++) {
-                push @exdates, _ical_time_for( $y, $m, $d, $w, $hour, $min )
+                push @exdates, _ical_time_for( $y, $m, $d, $w-1, $hour, $min )
                     if !$range->inrange( $w );
             }
 
