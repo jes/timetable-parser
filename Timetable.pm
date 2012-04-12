@@ -206,9 +206,8 @@ sub ical_for_dom {
     }
 
     # extract the times of periods from the first row
-    my @times;
     my @firstrow = @{ $table[0] };
-    push @times, $_->as_text() for @firstrow[1 .. $#firstrow];
+    my @times = map( $_->as_text(), @firstrow[1 .. $#firstrow] );
 
     my @ical;
 
