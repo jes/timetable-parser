@@ -247,7 +247,7 @@ sub ical_for_dom {
             # add an event hash
             my %icalevent = (
                     DTSTART => $startdate,
-                    DURATION => ($duration * 60 - 10) . "M",
+                    DURATION => "PT" . ($duration * 60 - 10) . "M",
                     RRULE => "FREQ=WEEKLY;COUNT=" . ($maxweek - $minweek + 1),
                     SUMMARY => "$subject $room",
             );
