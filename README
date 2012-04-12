@@ -30,10 +30,10 @@ DATA STRUCTURE
         [
             {
                 'SUMMARY' => 'CM20218-Leca 6W 1.1',
-                'DURATION' => '50M',
+                'DURATION' => 'PT50M',
                 'RRULE' => 'FREQ=WEEKLY;COUNT=15',
-                'EXDATE' => '20120402T081500Z,20120409T081500Z',
-                'DTSTART' => '20120206T091500Z'
+                'EXDATE' => '20120402T091500,20120409T091500',
+                'DTSTART' => '20120206T091500'
             }
         ];
 
