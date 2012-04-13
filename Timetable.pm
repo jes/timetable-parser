@@ -66,14 +66,12 @@ mean.
 
 =head1 FUNCTIONS
 
-=head2 ical_for_url $start, $url[, $outlook_mode]
+=head2 ical_for_url $start, $url
 
 $start should be an array reference of the form [ $year, $month, $day ]
 describing the date of the first monday in the timetabling period. How this is
 determined is an exercise for the module user (realistically, you have to just
 get it manually from the university semester dates).
-
-Set $outlook_mode to something true to get separate events for each week.
 
 Return an iCalendar structure describing the page at the given $url or undef if
 there is an error.
@@ -83,18 +81,15 @@ there is an error.
 sub ical_for_url {
     my $start = shift or (carp "no start date given to ical_for_url" and return undef);
     my $url = shift or (carp "no url given to ical_for_url" and return undef);
-    my $outlook_mode = shift;
 
     my $page = get( $url ) or (carp "error fetching html" and return undef);
 
-    return ical_for_html( $start, $page, $outlook_mode );
+    return ical_for_html( $start, $page );
 }
 
-=head2 ical_for_html $start, $html[, $outlook_mode]
+=head2 ical_for_html $start, $html
 
 $start is as for ical_for_url.
-
-Set $outlook_mode to something true to get separate events for each week.
 
 Return an iCalendar structure describing the page in $html or undef if there is
 an error.
@@ -104,13 +99,12 @@ an error.
 sub ical_for_html {
     my $start = shift or (carp "no start date given to ical_for_html" and return undef);
     my $html = shift or (carp "no html given to ical_for_html" and return undef);
-    my $outlook_mode = shift;
 
     my $dom = HTML::DOM->new();
     $dom->write( $html );
     $dom->close();
 
-    return ical_for_dom( $start, $dom, $outlook_mode );
+    return ical_for_dom( $start, $dom );
 }
 
 =begin private
@@ -161,11 +155,9 @@ sub _ical_time_for {
             $minute );
 }
 
-=head2 ical_for_dom $start, $dom[, $outlook_mode]
+=head2 ical_for_dom $start, $dom
 
 $start is as for ical_for_url.
-
-Set $outlook_mode to something true to get separate events for each week.
 
 Return an iCalendar structure describinbg the page in the HTML::DOM in $dom or
 undef if there is an error.
@@ -175,7 +167,6 @@ undef if there is an error.
 sub ical_for_dom {
     my $start = shift or (carp "no start date given to ical_for_dom" and return undef);
     my $dom = shift or (carp "no dom given to ical_for_dom" and return undef);
-    my $outlook_mode = shift;
 
     my ($year, $month, $day) = @{ $start };
 
@@ -249,52 +240,26 @@ sub ical_for_dom {
             my ($y, $m, $d) = Add_Delta_Days( $year, $month, $day, $dayofweek );
             my $startdate = _ical_time_for( $y, $m, $d, $minweek-1, $hour, $min );
 
-            if ($outlook_mode) {
-                my @dates;
+            # make a recurring event
+            my @exdates;
 
-                # run the event on appropriate weeks
-                WEEK:
-                for (my $w = $minweek; $w <= $maxweek; $w++) {
-                    next WEEK if !$range->inrange( $w );
-
-                    my $date = _ical_time_for( $y, $m, $d, $w-1, $hour, $min );
-
-                    # add on some minutes to get the end time
-                    my ($newy, $newm, $newd, $newhour, $newmin, $newsec) =
-                        Add_Delta_DHMS( $y, $m, $d, $hour, $min, 0,
-                                0, $duration, -10, 0 );
-                    my $enddate = _ical_time_for( $newy, $newm, $newd, $w-1, $newhour, $newmin );
-
-                    my %icalevent = (
-                            DTSTART => $date,
-                            DTEND => $enddate,
-                            SUMMARY => "$subject $room",
-                    );
-
-                    push @ical, \%icalevent;
-                }
-            } else {
-                # make a recurring event
-                my @exdates;
-
-                # work out what dates the event should not exist for
-                for (my $w = $minweek; $w <= $maxweek; $w++) {
-                    push @exdates, _ical_time_for( $y, $m, $d, $w-1, $hour,
-                            $min )
-                        if !$range->inrange( $w );
-                }
-
-                # add an event hash
-                my %icalevent = (
-                        DTSTART => $startdate,
-                        DURATION => "PT" . ($duration * 60 - 10) . "M",
-                        RRULE => "FREQ=WEEKLY;COUNT=" . ($maxweek - $minweek + 1),
-                        SUMMARY => "$subject $room",
-                );
-                $icalevent{EXDATE} = join( ',', @exdates) if @exdates;
-
-                push @ical, \%icalevent;
+            # work out what dates the event should not exist for
+            for (my $w = $minweek; $w <= $maxweek; $w++) {
+                push @exdates, _ical_time_for( $y, $m, $d, $w-1, $hour,
+                        $min )
+                    if !$range->inrange( $w );
             }
+
+            # add an event hash
+            my %icalevent = (
+                    DTSTART => $startdate,
+                    DURATION => "PT" . ($duration * 60 - 10) . "M",
+                    RRULE => "FREQ=WEEKLY;COUNT=" . ($maxweek - $minweek + 1),
+                    SUMMARY => "$subject $room",
+            );
+            $icalevent{EXDATE} = join( ',', @exdates) if @exdates;
+
+            push @ical, \%icalevent;
         }
 
         # some rows of events span several rows of the table, work out when
