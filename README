@@ -41,23 +41,32 @@ DATA STRUCTURE
     they mean.
 
 FUNCTIONS
-  ical_for_url $start, $url
+  ical_for_url $start, $url[, $outlook_mode]
     $start should be an array reference of the form [ $year, $month, $day ]
     describing the date of the first monday in the timetabling period. How
     this is determined is an exercise for the module user (realistically,
     you have to just get it manually from the university semester dates).
 
+    Set $outlook_mode to something true to get separate events for each
+    week.
+
     Return an iCalendar structure describing the page at the given $url or
     undef if there is an error.
 
-  ical_for_html $start, $html
+  ical_for_html $start, $html[, $outlook_mode]
     $start is as for ical_for_url.
+
+    Set $outlook_mode to something true to get separate events for each
+    week.
 
     Return an iCalendar structure describing the page in $html or undef if
     there is an error.
 
-  ical_for_dom $start, $dom
+  ical_for_dom $start, $dom[, $outlook_mode]
     $start is as for ical_for_url.
+
+    Set $outlook_mode to something true to get separate events for each
+    week.
 
     Return an iCalendar structure describinbg the page in the HTML::DOM in
     $dom or undef if there is an error.
