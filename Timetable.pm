@@ -366,9 +366,11 @@ sub ical_as_string {
     return _fold_lines( @lines );
 }
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 James Stanley <james@incoherency.co.uk>
+
+Alex Hobbs <ajh68@bath.ac.uk> helped debug a problem with Apple iCal
 
 =head1 LICENSING
 

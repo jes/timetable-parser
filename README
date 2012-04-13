@@ -75,8 +75,10 @@ FUNCTIONS
     Return a string representation of the given iCalendar structure,
     suitable for writing to a .ics file.
 
-AUTHOR
+AUTHORS
     James Stanley <james@incoherency.co.uk>
+
+    Alex Hobbs <ajh68@bath.ac.uk> helped debug a problem with Apple iCal
 
 LICENSING
     Do whatever you want.
