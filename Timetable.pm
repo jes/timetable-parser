@@ -7,7 +7,7 @@ use HTML::DOM;
 use Number::Range;
 use LWP::Simple;
 use DateTime;
-use Date::Calc qw/Add_Delta_Days/;
+use Date::Calc qw/Add_Delta_Days Add_Delta_DHMS/;
 use List::Util qw/min max/;
 use URI::Escape;
 use Carp;
@@ -259,9 +259,15 @@ sub ical_for_dom {
 
                     my $date = _ical_time_for( $y, $m, $d, $w-1, $hour, $min );
 
+                    # add on some minutes to get the end time
+                    my ($newy, $newm, $newd, $newhour, $newmin, $newsec) =
+                        Add_Delta_DHMS( $y, $m, $d, $hour, $min, 0,
+                                0, $duration, -10, 0 );
+                    my $enddate = _ical_time_for( $newy, $newm, $newd, $w-1, $newhour, $newmin );
+
                     my %icalevent = (
                             DTSTART => $date,
-                            DURATION => "PT" . ($duration * 60 - 10) . "M",
+                            DTEND => $enddate,
                             SUMMARY => "$subject $room",
                     );
 
