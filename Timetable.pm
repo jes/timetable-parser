@@ -350,7 +350,7 @@ sub ical_as_string {
     my @lines = (
         'BEGIN:VCALENDAR',
         'PRODID:Timetable.pm james@incoherency.co.uk',
-        'VERSION:1.0',
+        'VERSION:2.0',
     );
 
     foreach my $event (@$ical) {
