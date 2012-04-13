@@ -252,15 +252,13 @@ sub ical_for_dom {
             if ($outlook_mode) {
                 my @dates;
 
-                # find out what dates to run the event on
+                # run the event on appropriate weeks
+                WEEK:
                 for (my $w = $minweek; $w <= $maxweek; $w++) {
-                    push @dates, _ical_time_for( $y, $m, $d, $w-1, $hour,
-                            $min )
-                        if $range->inrange( $w );
-                }
+                    next WEEK if !$range->inrange( $w );
 
-                # add an event for each week
-                foreach my $date (@dates) {
+                    my $date = _ical_time_for( $y, $m, $d, $w-1, $hour, $min );
+
                     my %icalevent = (
                             DTSTART => $date,
                             DURATION => "PT" . ($duration * 60 - 10) . "M",
