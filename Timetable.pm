@@ -79,10 +79,13 @@ there is an error.
 =cut
 
 sub ical_for_url {
-    my $start = shift or (carp "no start date given to ical_for_url" and return undef);
-    my $url = shift or (carp "no url given to ical_for_url" and return undef);
+    my $start = shift or (carp "no start date given to ical_for_url"
+            and return undef);
+    my $url = shift or (carp "no url given to ical_for_url"
+            and return undef);
 
-    my $page = get( $url ) or (carp "error fetching html" and return undef);
+    my $page = get( $url )
+        or (carp "error fetching html" and return undef);
 
     return ical_for_html( $start, $page );
 }
@@ -97,8 +100,10 @@ an error.
 =cut
 
 sub ical_for_html {
-    my $start = shift or (carp "no start date given to ical_for_html" and return undef);
-    my $html = shift or (carp "no html given to ical_for_html" and return undef);
+    my $start = shift or (carp "no start date given to ical_for_html"
+            and return undef);
+    my $html = shift or (carp "no html given to ical_for_html"
+            and return undef);
 
     my $dom = HTML::DOM->new();
     $dom->write( $html );
@@ -197,7 +202,8 @@ sub ical_for_dom {
         push @table, \@row;
     }
 
-    (carp "biggest table is too small" and return undef) unless @table > 1 && @{ $table[0] } > 1;
+    (carp "biggest table is too small" and return undef) unless @table > 1
+        && @{ $table[0] } > 1;
 
     # extract the times of periods from the first row
     my @firstrow = @{ $table[0] };
@@ -221,11 +227,12 @@ sub ical_for_dom {
             $timeslot += $duration;
 
             # extract lines from the table (in <font> tags...)
-            my @lines = map( $_->as_text(), $cell->getElementsByTagName( 'font' ) );
+            my @lines = map( $_->as_text(),
+                    $cell->getElementsByTagName( 'font' ) );
 
             # skip empty cells and fail for wrong-sized ones
             next CELL if @lines == 0;
-            die "bad cell" if @lines != 3;
+            (carp "bad cell" and return undef) if @lines != 3;
 
             # extract information from the lines in the table
             my ($subject, $room, $weeks) = @lines;
@@ -238,7 +245,8 @@ sub ical_for_dom {
             my $maxweek = max( $range->range );
             my ($hour, $min) = split /:/, $time;
             my ($y, $m, $d) = Add_Delta_Days( $year, $month, $day, $dayofweek );
-            my $startdate = _ical_time_for( $y, $m, $d, $minweek-1, $hour, $min );
+            my $startdate = _ical_time_for( $y, $m, $d, $minweek-1, $hour,
+                    $min );
 
             # make a recurring event
             my @exdates;
@@ -310,7 +318,8 @@ writing to a .ics file.
 =cut
 
 sub ical_as_string {
-    my $ical = shift or die 'no ical given to ical_as_string';
+    my $ical = shift or (carp 'no ical given to ical_as_string'
+            and return undef);
 
     my @lines = (
         'BEGIN:VCALENDAR',
