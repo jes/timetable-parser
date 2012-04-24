@@ -243,6 +243,11 @@ sub ical_for_dom {
             my $range = Number::Range->new( $weeks );
             my $minweek = min( $range->range );
             my $maxweek = max( $range->range );
+            (carp "no weeks can be before 1" and return undef)
+                if $minweek < 1;
+            (carp "no weeks can be after 52" and return undef)
+                if $maxweek > 52;
+
             my ($hour, $min) = split /:/, $time;
             my ($y, $m, $d) = Add_Delta_Days( $year, $month, $day, $dayofweek );
             my $startdate = _ical_time_for( $y, $m, $d, $minweek-1, $hour,
