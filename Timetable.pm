@@ -237,23 +237,12 @@ sub ical_for_dom {
             # extract information from the lines in the table
             my ($subject, $room, $weeks) = @lines;
 
-            # ensure that the weeks are in an acceptable range
-            my ($minweek, $maxweek);
-            if ($weeks =~ /([0-9]+)$/) {
-                $maxweek = $1;
-                (carp "can't go past week 52" and return undef)
-                    if $maxweek > 52;
-            }
-            if ($weeks =~ /^(-?[0-9]+)/) {
-                $minweek = $1;
-                (carp "can't go before week 1" and return undef)
-                    if $minweek < 1;
-            }
-
             # get a Number::Range describing the weeks
             $weeks =~ s/\s+//g;
             $weeks =~ s/-/../g;
             my $range = Number::Range->new( $weeks );
+            my $minweek = min( $range->range );
+            my $maxweek = max( $range->range );
             my ($hour, $min) = split /:/, $time;
             my ($y, $m, $d) = Add_Delta_Days( $year, $month, $day, $dayofweek );
             my $startdate = _ical_time_for( $y, $m, $d, $minweek-1, $hour,
