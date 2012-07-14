@@ -130,7 +130,7 @@ sub _count_cells {
     my $cells = 0;
 
     foreach my $row ($table->rows) {
-        $cells += scalar @{ $row->cells };
+        $cells += $row->cells;
     }
 
     return $cells;
