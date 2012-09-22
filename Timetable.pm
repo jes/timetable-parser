@@ -267,6 +267,7 @@ sub ical_for_dom {
                     DURATION => "PT" . ($duration * 60 - 10) . "M",
                     RRULE => "FREQ=WEEKLY;COUNT=" . ($maxweek - $minweek + 1),
                     SUMMARY => "$subject $room",
+                    LOCATION => $room,
             );
             $icalevent{EXDATE} = join( ',', @exdates) if @exdates;
 
