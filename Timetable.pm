@@ -325,10 +325,30 @@ sub ical_as_string {
     my $ical = shift or (carp 'no ical given to ical_as_string'
             and return undef);
 
+    # Note: the timezone description here is a verbatim copy of the one
+    # exported by Google Calendar
     my @lines = (
         'BEGIN:VCALENDAR',
         'PRODID:Timetable.pm james@incoherency.co.uk',
         'VERSION:2.0',
+        'BEGIN:VTIMEZONE',
+        'TZID:Europe/London',
+        'X-LIC-LOCATION:Europe/London',
+        'BEGIN:DAYLIGHT',
+        'TZOFFSETFROM:+0000',
+        'TZOFFSETTO:+0100',
+        'TZNAME:BST',
+        'DTSTART:19700329T010000',
+        'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+        'END:DAYLIGHT',
+        'BEGIN:STANDARD',
+        'TZOFFSETFROM:+0100',
+        'TZOFFSETTO:+0000',
+        'TZNAME:GMT',
+        'DTSTART:19701025T020000',
+        'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+        'END:STANDARD',
+        'END:VTIMEZONE',
     );
 
     foreach my $event (@$ical) {
