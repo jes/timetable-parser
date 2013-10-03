@@ -14,7 +14,7 @@ use Carp;
 require Exporter;
 
 @ISA = qw/Exporter/;
-@EXPORT_OK = qw/ical_for_url ical_for_html ical_for_dom ical_as_string/;
+@EXPORT_OK = qw/parse_coursenames ical_for_url ical_for_html ical_for_dom ical_as_string/;
 
 use strict;
 use warnings;
@@ -25,7 +25,9 @@ Timetable.pm - convert a University of Bath HTML timetable to an iCalendar file
 
 =head1 SYNOPSIS
 
-    use Timetable qw/ical_for_url ical_as_string/;
+    use Timetable qw/ical_for_url ical_as_string parse_coursenames/;
+
+    parse_coursenames( 'names.tsv' );
 
     my @start = (2011, 10, 3);
     my $ical = ical_for_url( \@start, $url_to_timetable_page );
@@ -65,6 +67,33 @@ for a one-event structure with those properties. See RFC 2445 for what they
 mean.
 
 =head1 FUNCTIONS
+
+=head2 parse_coursenames $tsvfile
+
+Parse course names from the given TSV file. Forget any course names that were
+already known.
+
+=cut
+
+my %COURSENAME;
+
+sub parse_coursenames {
+    my $file = shift or (carp "no tsvfile given to parse_coursenames"
+            and return undef);
+
+    open( my $fh, '<', $file )
+        or (carp "can't read $file: $!" and return undef);
+
+    %COURSENAME = ();
+
+    while (<$fh>) {
+        chomp;
+        my ($code, $name) = split /\t/, $_, 2;
+        $COURSENAME{$code} = $name;
+    }
+
+    close $fh;
+}
 
 =head2 ical_for_url $start, $url
 
@@ -261,12 +290,16 @@ sub ical_for_dom {
                     if !$range->inrange( $w );
             }
 
+            my $code = $subject;
+            $code =~ s/-.*$//;
+            my $coursename = $COURSENAME{$code};
+
             # add an event hash
             my %icalevent = (
                     DTSTART => $startdate,
                     DURATION => "PT" . ($duration * 60 - 10) . "M",
                     RRULE => "FREQ=WEEKLY;COUNT=" . ($maxweek - $minweek + 1),
-                    SUMMARY => "$subject $room",
+                    SUMMARY => "$subject $room" . ($coursename ? " $coursename" : ''),
                     LOCATION => $room,
             );
             $icalevent{EXDATE} = join( ',', @exdates) if @exdates;
