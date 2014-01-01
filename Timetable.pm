@@ -8,6 +8,7 @@ use Number::Range;
 use LWP::Simple;
 use DateTime;
 use Date::Calc qw/Add_Delta_Days Add_Delta_DHMS/;
+use Digest::MD5 qw(md5_hex);
 use List::Util qw/min max/;
 use URI::Escape;
 use Carp;
@@ -301,6 +302,7 @@ sub ical_for_dom {
                     RRULE => "FREQ=WEEKLY;COUNT=" . ($maxweek - $minweek + 1),
                     SUMMARY => "$subject $room" . ($coursename ? " $coursename" : ''),
                     LOCATION => $room,
+                    UID => md5_hex("$subject-$room-" . time) . '@notlate.co.uk',
             );
             $icalevent{EXDATE} = join( ',', @exdates) if @exdates;
 
