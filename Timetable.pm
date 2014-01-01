@@ -295,6 +295,8 @@ sub ical_for_dom {
             $code =~ s/-.*$//;
             my $coursename = $COURSENAME{$code};
 
+            print STDERR "Unknown course code $code\n" unless $coursename;
+
             # add an event hash
             my %icalevent = (
                     DTSTART => $startdate,
